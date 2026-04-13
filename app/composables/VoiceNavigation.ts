@@ -8,11 +8,44 @@ type Threshold = (typeof THRESHOLDS)[number];
 
 const VOICE_STORAGE_KEY = "truck-nav-voice";
 
+// ─── Module-level shared state (not per-component) ───────────────────────────
+// These must live outside the composable function so they are truly shared
+// across all useVoiceNavigation() call sites (map.vue + settingsPanel.vue).
+let _firedThresholds: Set<Threshold> = new Set();
+let _lastTurnType: TurnType | null = null;
+let _cachedVoices: SpeechSynthesisVoice[] = [];
+let _voicesLoaded = false;
+
+/**
+ * Pre-load the voice list.
+ * Chrome/Electron: voices are loaded asynchronously and getVoices() returns []
+ * on the very first call. We listen for voiceschanged and cache the list.
+ */
+function initVoices() {
+    if (!import.meta.client || _voicesLoaded) return;
+
+    const synth = window.speechSynthesis;
+
+    const load = () => {
+        const v = synth.getVoices();
+        if (v.length > 0) {
+            _cachedVoices = v;
+            _voicesLoaded = true;
+        }
+    };
+
+    load(); // may already be available (Firefox fills synchronously)
+    synth.addEventListener("voiceschanged", load);
+}
+
+// ─── Composable ──────────────────────────────────────────────────────────────
 export const useVoiceNavigation = () => {
     const { t, locale } = useI18n();
 
     const voiceEnabled = useState<boolean>("voice-enabled", () => {
         if (import.meta.client) {
+            // Init voices while we're setting up
+            initVoices();
             const saved = localStorage.getItem(VOICE_STORAGE_KEY);
             return saved !== "false"; // default ON
         }
@@ -26,52 +59,8 @@ export const useVoiceNavigation = () => {
         }
     };
 
-    // Track which threshold already fired for the current turn
-    const firedThresholds = ref<Set<Threshold>>(new Set());
-    const lastTurnType = ref<TurnType | null>(null);
+    // ── Phrase builders ────────────────────────────────────────────────────
 
-    /**
-     * Build the "prep" phrase for a given distance band.
-     * e.g. "In einem Kilometer links abbiegen" or "In 500 Metern rechts abbiegen"
-     */
-    const buildPrepPhrase = (distKm: number, type: TurnType): string => {
-        const v = t.value.voice;
-
-        const action = getTurnAction(type);
-        if (!action) return "";
-
-        if (distKm >= 0.9) {
-            // ~1 km band
-            return `${v.inDistance} ${v.oneKilometer}, ${action}`;
-        } else {
-            // ~500 m band
-            const meters = Math.round(distKm * 1000 / 100) * 100; // round to nearest 100m
-            return `${v.inDistance} ${meters} ${v.meter}, ${action}`;
-        }
-    };
-
-    /**
-     * Build the "now" phrase spoken right at the turn.
-     */
-    const buildNowPhrase = (type: TurnType): string => {
-        const v = t.value.voice;
-        const map: Partial<Record<TurnType, string>> = {
-            left: v.nowTurnLeft,
-            right: v.nowTurnRight,
-            "slight-left": v.nowSlightLeft,
-            "slight-right": v.nowSlightRight,
-            "sharp-left": v.nowSharpLeft,
-            "sharp-right": v.nowSharpRight,
-            roundabout: v.nowRoundabout,
-            "exit-highway": v.nowExitHighway,
-            destination: v.arrived,
-        };
-        return map[type] ?? "";
-    };
-
-    /**
-     * Get the action part of a prep phrase ("links abbiegen" / "turn left" etc.)
-     */
     const getTurnAction = (type: TurnType): string => {
         const v = t.value.voice;
         const map: Partial<Record<TurnType, string>> = {
@@ -88,43 +77,75 @@ export const useVoiceNavigation = () => {
         return map[type] ?? "";
     };
 
-    /**
-     * Speak a phrase using the Web Speech API.
-     * Uses the current locale's BCP-47 tag.
-     */
-    const speak = (text: string) => {
-        if (!import.meta.client) return;
-        if (!text) return;
+    const buildPrepPhrase = (distKm: number, type: TurnType): string => {
+        const v = t.value.voice;
+        const action = getTurnAction(type);
+        if (!action) return "";
 
-        const synth = window.speechSynthesis;
-        synth.cancel(); // interrupt any ongoing speech
-
-        const utterance = new SpeechSynthesisUtterance(text);
-
-        // Pick a voice that matches the locale
-        const langTag = locale.value === "de" ? "de-DE" : "en-GB";
-        utterance.lang = langTag;
-
-        // TomTom-style: slightly slower, clear pronunciation
-        utterance.rate = 0.95;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-
-        // Try to find a matching voice (especially on desktop)
-        const voices = synth.getVoices();
-        const match =
-            voices.find((v) => v.lang.startsWith(langTag)) ||
-            voices.find((v) => v.lang.startsWith(locale.value));
-
-        if (match) utterance.voice = match;
-
-        synth.speak(utterance);
+        if (distKm >= 0.9) {
+            return `${v.inDistance} ${v.oneKilometer}, ${action}`;
+        } else {
+            const meters = Math.round((distKm * 1000) / 100) * 100;
+            return `${v.inDistance} ${meters} ${v.meter}, ${action}`;
+        }
     };
 
+    const buildNowPhrase = (type: TurnType): string => {
+        const v = t.value.voice;
+        const map: Partial<Record<TurnType, string>> = {
+            left: v.nowTurnLeft,
+            right: v.nowTurnRight,
+            "slight-left": v.nowSlightLeft,
+            "slight-right": v.nowSlightRight,
+            "sharp-left": v.nowSharpLeft,
+            "sharp-right": v.nowSharpRight,
+            roundabout: v.nowRoundabout,
+            "exit-highway": v.nowExitHighway,
+            destination: v.arrived,
+        };
+        return map[type] ?? "";
+    };
+
+    // ── Core speech function ───────────────────────────────────────────────
+
+    const speak = (text: string) => {
+        if (!import.meta.client || !text) return;
+
+        const synth = window.speechSynthesis;
+
+        // Chrome/Electron bug: cancel() immediately before speak() swallows the
+        // utterance. We cancel first, then wait one microtask before speaking.
+        synth.cancel();
+
+        // Reload voices if cache is empty (handles late voiceschanged)
+        if (_cachedVoices.length === 0) {
+            _cachedVoices = synth.getVoices();
+        }
+
+        const langTag = locale.value === "de" ? "de-DE" : "en-GB";
+
+        setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langTag;
+            utterance.rate = 0.92;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+
+            // Find best matching voice
+            const match =
+                _cachedVoices.find((v) => v.lang === langTag) ||
+                _cachedVoices.find((v) => v.lang.startsWith(locale.value));
+
+            if (match) utterance.voice = match;
+
+            synth.speak(utterance);
+        }, 50);
+    };
+
+    // ── Announcement logic ─────────────────────────────────────────────────
+
     /**
-     * Main function — call this on every telemetry tick while navigating.
-     * @param distanceKm  Distance to next turn in km (nextTurnDistance)
-     * @param turnType    Type of next turn (fullRouteDirections[1]?.type)
+     * Call this on every telemetry tick while navigating.
      */
     const checkAnnouncement = (
         distanceKm: number,
@@ -138,25 +159,24 @@ export const useVoiceNavigation = () => {
         )
             return;
 
-        // Reset fired set whenever the turn type changes
-        if (turnType !== lastTurnType.value) {
-            firedThresholds.value.clear();
-            lastTurnType.value = turnType;
+        // Reset when we move to a new turn maneuver
+        if (turnType !== _lastTurnType) {
+            _firedThresholds.clear();
+            _lastTurnType = turnType;
         }
 
-        // Check thresholds from largest to smallest
         for (const threshold of THRESHOLDS) {
-            if (firedThresholds.value.has(threshold)) continue;
+            if (_firedThresholds.has(threshold)) continue;
 
             const withinBand =
                 threshold === 0.0
-                    ? distanceKm < 0.08 // within ~80m = "now"
+                    ? distanceKm < 0.08
                     : threshold === 0.5
-                      ? distanceKm <= 0.55 && distanceKm > 0.12
+                      ? distanceKm <= 0.55 && distanceKm > 0.08
                       : distanceKm <= 1.1 && distanceKm > 0.55;
 
             if (withinBand) {
-                firedThresholds.value.add(threshold);
+                _firedThresholds.add(threshold);
 
                 const phrase =
                     threshold === 0.0
@@ -164,36 +184,27 @@ export const useVoiceNavigation = () => {
                         : buildPrepPhrase(distanceKm, turnType);
 
                 speak(phrase);
-                break; // only one announcement per tick
+                break;
             }
         }
     };
 
-    /**
-     * Announce destination arrived.
-     */
     const announceArrived = () => {
         if (!voiceEnabled.value) return;
+        _firedThresholds.clear();
+        _lastTurnType = null;
         speak(t.value.voice.arrived);
-        firedThresholds.value.clear();
-        lastTurnType.value = null;
     };
 
-    /**
-     * Announce route recalculation.
-     */
     const announceRecalculating = () => {
         if (!voiceEnabled.value) return;
         speak(t.value.voice.recalculating);
     };
 
-    /**
-     * Reset state (call when route is cleared).
-     */
     const resetVoice = () => {
         if (import.meta.client) window.speechSynthesis?.cancel();
-        firedThresholds.value.clear();
-        lastTurnType.value = null;
+        _firedThresholds.clear();
+        _lastTurnType = null;
     };
 
     return {
