@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import { isBridgeRunning } from "~/assets/utils/telemetry/helpers";
 const props = defineProps<{ requireGame?: boolean }>();
+const { t } = useI18n();
 
 const { selectedGame, commitSelection } = useGameSelection();
 const { settings, updateGlobal } = useSettings();
 
-const connectionError = ref("Disconnected");
+const connectionError = ref("");
 const ipInput = ref(settings.value.savedIP || "");
 const isConnecting = ref(false);
 const isConnected = ref(false);
@@ -37,7 +38,7 @@ const handleConnect = async () => {
     connectionError.value = "Disconnected";
 
     if (!ipInput.value) {
-        connectionError.value = "Please input a value.";
+        connectionError.value = t.value.inputIp.noValue;
         return;
     }
 
@@ -58,7 +59,7 @@ const handleConnect = async () => {
         }, 500);
     } catch (error) {
         isConnected.value = false;
-        connectionError.value = "Could not connect...";
+        connectionError.value = t.value.inputIp.cannotConnect;
         isConnecting.value = false;
     }
 };
@@ -69,20 +70,19 @@ const handleConnect = async () => {
         <div class="input-ip">
             <div class="form-details">
                 <form @submit.prevent="handleConnect" action="">
-                    <label for="ip">IP Address:</label>
+                    <label for="ip">{{ t.inputIp.label }}</label>
                     <input
                         id="ip"
                         v-model="ipInput"
                         type="text"
                         name="ip"
-                        placeholder="Type here..."
+                        :placeholder="t.inputIp.placeholder"
                         :disabled="isConnecting"
                     />
                 </form>
                 <p class="status">
-                    <span v-if="!connectionError">Current Status: &nbsp;</span>
                     <span :class="isConnected ? 'connected' : 'disconnected'">{{
-                        isConnected ? "Connected" : connectionError
+                        isConnected ? t.inputIp.connected : (connectionError || t.inputIp.disconnected)
                     }}</span>
                 </p>
             </div>
@@ -90,16 +90,16 @@ const handleConnect = async () => {
             <div class="description">
                 <div class="note">
                     <Icon name="i-majesticons:information-circle-line" />
-                    <p>Note</p>
+                    <p>{{ t.inputIp.noteTitle }}</p>
                 </div>
                 <p class="description-text">
-                    Enter the IP shown in TruckNav from your computer
+                    {{ t.inputIp.noteText }}
                 </p>
             </div>
         </div>
 
         <button class="btn" @click="handleConnect" :disabled="!canConnect">
-            <span>{{ isConnecting ? "Connecting..." : "Connect" }}</span>
+            <span>{{ isConnecting ? t.inputIp.connecting : t.inputIp.connect }}</span>
             <Icon name="i-fa7-solid:chain" size="20" />
         </button>
     </div>

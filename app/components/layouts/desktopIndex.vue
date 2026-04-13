@@ -4,6 +4,7 @@ import type { ets2Expansions } from "~/data/ets2/ets2Expansions";
 const props = defineProps<{ launchChooseGame: () => void }>();
 
 const { fetchIp, fetchPort, localIP, localPort } = useNetwork();
+const { t } = useI18n();
 const { updateGlobal } = useSettings();
 
 const isServerRunning = ref(false);
@@ -78,12 +79,12 @@ const toggleWindow = () => {
     <section class="section-device-info">
         <div class="top-tagline">
             <Icon name="whh:gpsalt" class="icon" size="20" />
-            <span>Your Trucking Companion</span>
+            <span>{{ t.desktopHome.tagline }}</span>
         </div>
 
         <div class="content">
             <div class="title-wrapper">
-                <h2 class="title">Welcome to TruckNav!</h2>
+                <h2 class="title">{{ t.desktopHome.title }}</h2>
                 <Icon
                     class="github-icon"
                     name="mdi:github"
@@ -96,30 +97,20 @@ const toggleWindow = () => {
                 />
             </div>
 
-            <span class="subtitle"
-                >Below you’ll find instructions to set up the app on your
-                phone.</span
-            >
+            <span class="subtitle">{{ t.desktopHome.subtitle }}</span>
             <div class="steps">
                 <ol>
-                    <li>Make sure ETS2 / ATS is running on your PC.</li>
+                    <li>{{ t.desktopHome.step1 }}</li>
                     <li>
-                        If the plugin is missing, click the folder icon and
-                        select the game's executable folder: <br />
+                        {{ t.desktopHome.step2a }} <br />
                         <code>C:\...\Euro Truck Simulator 2\bin\win_x64</code>
                     </li>
+                    <li>{{ t.desktopHome.step3 }}</li>
+                    <li>{{ t.desktopHome.step4 }}</li>
                     <li>
-                        Ensure your phone is connected to the same network as
-                        your PC.
-                    </li>
-                    <li>
-                        Open the TruckNav app or web browser using the ip
-                        address below.
-                    </li>
-                    <li>
-                        TruckNav App:
+                        {{ t.desktopHome.step5a }}
                         <strong class="localIp">{{ localIP }}</strong> |
-                        Browser:
+                        {{ t.desktopHome.step5b }}
                         <strong class="localIp"
                             >{{ localIP }}:{{ localPort }}</strong
                         >
@@ -130,15 +121,15 @@ const toggleWindow = () => {
             <div class="bottom-info">
                 <div class="status-div">
                     <div class="status">
-                        <p>Current Status: &nbsp;</p>
+                        <p>{{ t.desktopHome.statusLabel }} &nbsp;</p>
                         <span
                             :class="
                                 isServerRunning ? 'connected' : 'disconnected'
                             "
                             >{{
                                 isServerRunning
-                                    ? "Connected"
-                                    : "Offline, try opening again."
+                                    ? t.desktopHome.connected
+                                    : t.desktopHome.offline
                             }}</span
                         >
                     </div>
@@ -152,11 +143,7 @@ const toggleWindow = () => {
                             size="20"
                             class="icon"
                         />
-                        <span
-                            >Telemetry is running.
-                            <strong>Minimize</strong> this window to keep the
-                            GPS active.
-                        </span>
+                        <span>{{ t.desktopHome.telemetryInfo }}</span>
                     </div>
                 </div>
             </div>
@@ -173,7 +160,11 @@ const toggleWindow = () => {
                         >
                             <span
                                 >Plugin
-                                {{ etsActive ? "Active" : "Missing" }}</span
+                                {{
+                                    etsActive
+                                        ? t.desktopHome.pluginActive
+                                        : t.desktopHome.pluginMissing
+                                }}</span
                             >
                             <button
                                 @click.prevent="handleExplorerLaunch('ETS2')"
@@ -197,7 +188,11 @@ const toggleWindow = () => {
                         >
                             <span
                                 >Plugin
-                                {{ atsActive ? "Active" : "Missing" }}</span
+                                {{
+                                    atsActive
+                                        ? t.desktopHome.pluginActive
+                                        : t.desktopHome.pluginMissing
+                                }}</span
                             >
                             <button
                                 @click.prevent="handleExplorerLaunch('ATS')"
@@ -227,12 +222,12 @@ const toggleWindow = () => {
 
             <div class="connection-type">
                 <button @click.prevent="toggleWindow" class="btn">
-                    <span>Remote GPS</span>
+                    <span>{{ t.desktopHome.remoteGps }}</span>
                     <Icon name="material-symbols:link-rounded" size="20" />
                 </button>
 
                 <button @click.prevent="handleLocalLaunch" class="btn">
-                    <span>Local GPS </span>
+                    <span>{{ t.desktopHome.localGps }}</span>
                     <Icon
                         name="material-symbols:screenshot-monitor-outline-rounded"
                         size="20"

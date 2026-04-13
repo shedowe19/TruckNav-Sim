@@ -4,6 +4,7 @@ import { atsExpansions } from "~/data/ats/atsExpansions";
 
 const { settings, activeSettings, updateProfile, resetSettings } =
     useSettings();
+const { t, locale, setLocale } = useI18n();
 
 const props = defineProps<{ closePanel: () => void }>();
 
@@ -53,9 +54,9 @@ function toggleGuidedNavigation() {
                 <Icon name="lucide:settings" size="38" />
 
                 <div>
-                    <p class="panel-title">Settings</p>
+                    <p class="panel-title">{{ t.settings.title }}</p>
                     <p class="panel-description">
-                        App preferences and customization
+                        {{ t.settings.description }}
                     </p>
                 </div>
             </div>
@@ -66,7 +67,7 @@ function toggleGuidedNavigation() {
         <div class="option setting">
             <div class="option-title">
                 <Icon name="lucide:map-plus" size="24" />
-                <p>Owned DLCs</p>
+                <p>{{ t.settings.ownedDlcs }}</p>
             </div>
             <div class="owned-dlcs">
                 <button
@@ -74,7 +75,7 @@ function toggleGuidedNavigation() {
                     class="nav-btn settings-btn"
                 >
                     {{ activeSettings.ownedDlcs.length }} /
-                    {{ Object.keys(selectedExpansion).length }} active
+                    {{ Object.keys(selectedExpansion).length }} {{ t.settings.active }}
                 </button>
             </div>
         </div>
@@ -94,7 +95,7 @@ function toggleGuidedNavigation() {
         <div class="option setting">
             <div class="option-title">
                 <Icon name="lucide:type-outline" size="24" />
-                <p>Text Theme</p>
+                <p>{{ t.settings.textTheme }}</p>
             </div>
 
             <div class="segmented-control" @click="toggleTextColor">
@@ -102,14 +103,14 @@ function toggleGuidedNavigation() {
                     class="segment-btn"
                     :class="{ active: isTextThemeLight }"
                 >
-                    <span class="label">Light</span>
+                    <span class="label">{{ t.settings.light }}</span>
                 </button>
 
                 <button
                     class="segment-btn"
                     :class="{ active: !isTextThemeLight }"
                 >
-                    <span class="label">Dark</span>
+                    <span class="label">{{ t.settings.dark }}</span>
                 </button>
             </div>
         </div>
@@ -117,16 +118,16 @@ function toggleGuidedNavigation() {
         <div class="option setting">
             <div class="option-title">
                 <Icon name="lucide:ruler" size="24" />
-                <p>Units</p>
+                <p>{{ t.settings.units }}</p>
             </div>
 
             <div class="segmented-control" @click="toggleUnits">
                 <button class="segment-btn" :class="{ active: isMetric }">
-                    <span class="label">Metric</span>
+                    <span class="label">{{ t.settings.metric }}</span>
                 </button>
 
                 <button class="segment-btn" :class="{ active: !isMetric }">
-                    <span class="label">Imperial</span>
+                    <span class="label">{{ t.settings.imperial }}</span>
                 </button>
             </div>
         </div>
@@ -134,7 +135,7 @@ function toggleGuidedNavigation() {
         <div class="option setting">
             <div class="option-title">
                 <Icon name="lucide:navigation-2" size="24" />
-                <p>Guided Navigation</p>
+                <p>{{ t.settings.guidedNavigation }}</p>
             </div>
 
             <div class="segmented-control" @click="toggleGuidedNavigation">
@@ -142,14 +143,14 @@ function toggleGuidedNavigation() {
                     class="segment-btn"
                     :class="{ active: hasGuidedNavigation }"
                 >
-                    <span class="label">On</span>
+                    <span class="label">{{ t.settings.on }}</span>
                 </button>
 
                 <button
                     class="segment-btn"
                     :class="{ activeOff: !hasGuidedNavigation }"
                 >
-                    <span class="label">Off</span>
+                    <span class="label">{{ t.settings.off }}</span>
                 </button>
             </div>
         </div>
@@ -157,15 +158,40 @@ function toggleGuidedNavigation() {
         <div class="option setting">
             <div class="option-title">
                 <Icon name="lucide:rotate-ccw" size="24" />
-                <p>Reset to Defaults</p>
+                <p>{{ t.settings.resetDefaults }}</p>
             </div>
 
             <button
                 @click.prevent="resetSettings"
                 class="nav-btn settings-btn default-color"
             >
-                Reset
+                {{ t.settings.reset }}
             </button>
+        </div>
+
+        <div class="option setting">
+            <div class="option-title">
+                <Icon name="lucide:languages" size="24" />
+                <p>{{ t.settings.language }}</p>
+            </div>
+
+            <div class="segmented-control">
+                <button
+                    class="segment-btn"
+                    :class="{ active: locale === 'de' }"
+                    @click="setLocale('de')"
+                >
+                    <span class="label">DE</span>
+                </button>
+
+                <button
+                    class="segment-btn"
+                    :class="{ active: locale === 'en' }"
+                    @click="setLocale('en')"
+                >
+                    <span class="label">EN</span>
+                </button>
+            </div>
         </div>
 
         <Transition name="panel-pop">
