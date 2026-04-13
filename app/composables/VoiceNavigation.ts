@@ -8,23 +8,33 @@ type Threshold = (typeof THRESHOLDS)[number];
 
 const VOICE_STORAGE_KEY = "truck-nav-voice";
 
-// ─── Module-level shared state (not per-component) ───────────────────────────
-// These must live outside the composable function so they are truly shared
-// across all useVoiceNavigation() call sites (map.vue + settingsPanel.vue).
+// ─── Module-level shared state ────────────────────────────────────────────────
 let _firedThresholds: Set<Threshold> = new Set();
 let _lastTurnType: TurnType | null = null;
 let _cachedVoices: SpeechSynthesisVoice[] = [];
 let _voicesLoaded = false;
 
+/** Safe getter — returns null if speechSynthesis is not supported. */
+function getSynth(): SpeechSynthesis | null {
+    if (typeof window === "undefined") return null;
+    return window.speechSynthesis ?? null;
+}
+
+/** Returns true if the platform supports speech synthesis. */
+function isSpeechSupported(): boolean {
+    return getSynth() !== null;
+}
+
 /**
  * Pre-load the voice list.
- * Chrome/Electron: voices are loaded asynchronously and getVoices() returns []
- * on the very first call. We listen for voiceschanged and cache the list.
+ * Chrome/Electron: voices are loaded async; getVoices() returns [] on first call.
+ * Android WebView: speechSynthesis may be undefined — we silently skip.
  */
 function initVoices() {
     if (!import.meta.client || _voicesLoaded) return;
 
-    const synth = window.speechSynthesis;
+    const synth = getSynth();
+    if (!synth) return; // speechSynthesis not supported (some Android WebViews)
 
     const load = () => {
         const v = synth.getVoices();
@@ -44,8 +54,7 @@ export const useVoiceNavigation = () => {
 
     const voiceEnabled = useState<boolean>("voice-enabled", () => {
         if (import.meta.client) {
-            // Init voices while we're setting up
-            initVoices();
+            initVoices(); // safe — guarded inside
             const saved = localStorage.getItem(VOICE_STORAGE_KEY);
             return saved !== "false"; // default ON
         }
@@ -111,15 +120,17 @@ export const useVoiceNavigation = () => {
     const speak = (text: string) => {
         if (!import.meta.client || !text) return;
 
-        const synth = window.speechSynthesis;
+        const synth = getSynth();
+        if (!synth) return; // speechSynthesis not available — fail silently
 
         // Chrome/Electron bug: cancel() immediately before speak() swallows the
-        // utterance. We cancel first, then wait one microtask before speaking.
+        // utterance. We cancel first, then wait 50ms before speaking.
         synth.cancel();
 
         // Reload voices if cache is empty (handles late voiceschanged)
         if (_cachedVoices.length === 0) {
-            _cachedVoices = synth.getVoices();
+            const v = synth.getVoices();
+            if (v.length > 0) _cachedVoices = v;
         }
 
         const langTag = locale.value === "de" ? "de-DE" : "en-GB";
@@ -204,15 +215,12 @@ export const useVoiceNavigation = () => {
     /** Speak a test sample — called from the settings test button. */
     const testVoice = () => {
         const v = t.value.voice;
-        const phrase =
-            locale.value === "de"
-                ? `${v.inDistance} ${v.oneKilometer}, ${v.turnLeft}`
-                : `${v.inDistance} ${v.oneKilometer}, ${v.turnLeft}`;
-        speak(phrase);
+        speak(`${v.inDistance} ${v.oneKilometer}, ${v.turnLeft}`);
     };
 
     const resetVoice = () => {
-        if (import.meta.client) window.speechSynthesis?.cancel();
+        const synth = getSynth();
+        if (synth) synth.cancel();
         _firedThresholds.clear();
         _lastTurnType = null;
     };
@@ -225,5 +233,6 @@ export const useVoiceNavigation = () => {
         announceArrived,
         announceRecalculating,
         resetVoice,
+        isSpeechSupported,
     };
 };
