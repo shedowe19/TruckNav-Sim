@@ -1,5 +1,4 @@
 import { Capacitor } from "@capacitor/core";
-import { TextToSpeech } from "@capacitor-community/text-to-speech";
 import type { DirectionStep } from "~/assets/utils/routing/directions";
 
 type TurnType = DirectionStep["type"];
@@ -132,14 +131,16 @@ export const useVoiceNavigation = () => {
 
         // ── Native Android / iOS: use Capacitor TTS ──────────────────────
         if (isNative()) {
-            TextToSpeech.speak({
-                text,
-                lang: langTag,
-                rate: 0.92,
-                pitch: 1.0,
-                volume: 1.0,
-                category: "ambient",
-            }).catch(() => {
+            import("@capacitor-community/text-to-speech").then(({ TextToSpeech }) =>
+                TextToSpeech.speak({
+                    text,
+                    lang: langTag,
+                    rate: 0.92,
+                    pitch: 1.0,
+                    volume: 1.0,
+                    category: "ambient",
+                })
+            ).catch(() => {
                 // Fail silently — navigation continues without voice
             });
             return;
@@ -244,7 +245,9 @@ export const useVoiceNavigation = () => {
 
     const resetVoice = () => {
         if (isNative()) {
-            TextToSpeech.stop().catch(() => {});
+            import("@capacitor-community/text-to-speech").then(({ TextToSpeech }) =>
+                TextToSpeech.stop()
+            ).catch(() => {});
         } else {
             const synth = getSynth();
             if (synth) synth.cancel();
