@@ -1,3 +1,5 @@
+import { Capacitor } from "@capacitor/core";
+import { TextToSpeech } from "@capacitor-community/text-to-speech";
 import type { DirectionStep } from "~/assets/utils/routing/directions";
 
 type TurnType = DirectionStep["type"];
@@ -14,6 +16,11 @@ let _lastTurnType: TurnType | null = null;
 let _cachedVoices: SpeechSynthesisVoice[] = [];
 let _voicesLoaded = false;
 
+/** Returns true if we are running inside a Capacitor native shell (Android/iOS). */
+function isNative(): boolean {
+    return Capacitor.isNativePlatform();
+}
+
 /** Safe getter — returns null if speechSynthesis is not supported. */
 function getSynth(): SpeechSynthesis | null {
     if (typeof window === "undefined") return null;
@@ -22,16 +29,17 @@ function getSynth(): SpeechSynthesis | null {
 
 /** Returns true if the platform supports speech synthesis. */
 function isSpeechSupported(): boolean {
-    return getSynth() !== null;
+    return isNative() || getSynth() !== null;
 }
 
 /**
  * Pre-load the voice list.
  * Chrome/Electron: voices are loaded async; getVoices() returns [] on first call.
  * Android WebView: speechSynthesis may be undefined — we silently skip.
+ * On native platforms this is a no-op (Capacitor TTS handles its own init).
  */
 function initVoices() {
-    if (!import.meta.client || _voicesLoaded) return;
+    if (!import.meta.client || _voicesLoaded || isNative()) return;
 
     const synth = getSynth();
     if (!synth) return; // speechSynthesis not supported (some Android WebViews)
@@ -120,6 +128,24 @@ export const useVoiceNavigation = () => {
     const speak = (text: string) => {
         if (!import.meta.client || !text) return;
 
+        const langTag = locale.value === "de" ? "de-DE" : "en-GB";
+
+        // ── Native Android / iOS: use Capacitor TTS ──────────────────────
+        if (isNative()) {
+            TextToSpeech.speak({
+                text,
+                lang: langTag,
+                rate: 0.92,
+                pitch: 1.0,
+                volume: 1.0,
+                category: "ambient",
+            }).catch(() => {
+                // Fail silently — navigation continues without voice
+            });
+            return;
+        }
+
+        // ── Web / Electron: use Web Speech API ───────────────────────────
         const synth = getSynth();
         if (!synth) return; // speechSynthesis not available — fail silently
 
@@ -132,8 +158,6 @@ export const useVoiceNavigation = () => {
             const v = synth.getVoices();
             if (v.length > 0) _cachedVoices = v;
         }
-
-        const langTag = locale.value === "de" ? "de-DE" : "en-GB";
 
         setTimeout(() => {
             const utterance = new SpeechSynthesisUtterance(text);
@@ -219,8 +243,12 @@ export const useVoiceNavigation = () => {
     };
 
     const resetVoice = () => {
-        const synth = getSynth();
-        if (synth) synth.cancel();
+        if (isNative()) {
+            TextToSpeech.stop().catch(() => {});
+        } else {
+            const synth = getSynth();
+            if (synth) synth.cancel();
+        }
         _firedThresholds.clear();
         _lastTurnType = null;
     };
