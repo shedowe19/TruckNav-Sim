@@ -53,5 +53,10 @@
         "glob": "11.0.5",
         "tar": "7.5.8",
         "pmtiles": "4.3.0"
+    },
+    "overrides": {
+        "onetime@5": {
+            "mimic-fn": "2.1.0"
+        }
     }
 }
