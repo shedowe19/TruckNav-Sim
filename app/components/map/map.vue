@@ -106,6 +106,11 @@ const {
 
 //
 //
+// Voice Navigation
+const { checkAnnouncement, resetVoice, announceArrived } = useVoiceNavigation();
+
+//
+//
 // Settings Controller
 const { activeSettings, settings } = useSettings();
 
@@ -330,6 +335,7 @@ onMounted(async () => {
 onUnmounted(() => {
     stopTelemetry();
     destroyWorker();
+    resetVoice();
 
     if (routeTimer) clearTimeout(routeTimer);
     if (uiTimer) clearTimeout(uiTimer);
@@ -352,6 +358,16 @@ function onTelemetryUpdate() {
             scale.value,
             averageSpeed.value,
         );
+
+        // Voice announcement
+        const nextTurn = fullRouteDirections.value[1];
+        if (nextTurn) {
+            if (nextTurn.type === "destination" && nextTurnDistance.value < 0.05) {
+                announceArrived();
+            } else {
+                checkAnnouncement(nextTurnDistance.value, nextTurn.type);
+            }
+        }
     }
 }
 
@@ -408,6 +424,7 @@ const toggleSettingsPanel = () => {
 const onCancelRoute = () => {
     clearRouteState();
     stopNavigationMode();
+    resetVoice();
 };
 </script>
 

@@ -5,6 +5,7 @@ import { atsExpansions } from "~/data/ats/atsExpansions";
 const { settings, activeSettings, updateProfile, resetSettings } =
     useSettings();
 const { t, locale, setLocale } = useI18n();
+const { voiceEnabled, setVoiceEnabled } = useVoiceNavigation();
 
 const props = defineProps<{ closePanel: () => void }>();
 
@@ -111,6 +112,31 @@ function toggleGuidedNavigation() {
                     :class="{ active: !isTextThemeLight }"
                 >
                     <span class="label">{{ t.settings.dark }}</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="option setting">
+            <div class="option-title">
+                <Icon name="lucide:volume-2" size="24" />
+                <p>{{ t.settings.voice }}</p>
+            </div>
+
+            <div class="segmented-control">
+                <button
+                    class="segment-btn"
+                    :class="{ active: voiceEnabled }"
+                    @click="setVoiceEnabled(true)"
+                >
+                    <span class="label">{{ t.settings.on }}</span>
+                </button>
+
+                <button
+                    class="segment-btn"
+                    :class="{ activeOff: !voiceEnabled }"
+                    @click="setVoiceEnabled(false)"
+                >
+                    <span class="label">{{ t.settings.off }}</span>
                 </button>
             </div>
         </div>
