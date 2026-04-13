@@ -5,7 +5,7 @@ import { atsExpansions } from "~/data/ats/atsExpansions";
 const { settings, activeSettings, updateProfile, resetSettings } =
     useSettings();
 const { t, locale, setLocale } = useI18n();
-const { voiceEnabled, setVoiceEnabled } = useVoiceNavigation();
+const { voiceEnabled, setVoiceEnabled, testVoice } = useVoiceNavigation();
 
 const props = defineProps<{ closePanel: () => void }>();
 
@@ -139,6 +139,15 @@ function toggleGuidedNavigation() {
                     <span class="label">{{ t.settings.off }}</span>
                 </button>
             </div>
+
+            <button
+                @click.prevent="testVoice"
+                class="nav-btn settings-btn"
+                style="margin-top: 0.6rem; width: 100%;"
+            >
+                <Icon name="lucide:play" size="16" />
+                {{ t.settings.voiceTest }}
+            </button>
         </div>
 
         <div class="option setting">

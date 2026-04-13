@@ -201,6 +201,16 @@ export const useVoiceNavigation = () => {
         speak(t.value.voice.recalculating);
     };
 
+    /** Speak a test sample — called from the settings test button. */
+    const testVoice = () => {
+        const v = t.value.voice;
+        const phrase =
+            locale.value === "de"
+                ? `${v.inDistance} ${v.oneKilometer}, ${v.turnLeft}`
+                : `${v.inDistance} ${v.oneKilometer}, ${v.turnLeft}`;
+        speak(phrase);
+    };
+
     const resetVoice = () => {
         if (import.meta.client) window.speechSynthesis?.cancel();
         _firedThresholds.clear();
@@ -210,6 +220,7 @@ export const useVoiceNavigation = () => {
     return {
         voiceEnabled,
         setVoiceEnabled,
+        testVoice,
         checkAnnouncement,
         announceArrived,
         announceRecalculating,

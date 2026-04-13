@@ -91,6 +91,7 @@ export const de = {
         reset: "Zurücksetzen",
         language: "Sprache",
         voice: "Sprachnavigation",
+        voiceTest: "Stimme testen",
     },
 
     // Voice Navigation

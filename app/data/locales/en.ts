@@ -93,6 +93,7 @@ export const en: Locale = {
         reset: "Reset",
         language: "Language",
         voice: "Voice Navigation",
+        voiceTest: "Test Voice",
     },
 
     // Voice Navigation
