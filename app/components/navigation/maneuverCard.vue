@@ -15,8 +15,6 @@ const displayTurns = computed(() => {
     return props.upcomingTurns.slice(1, 3);
 });
 
-const { activeSettings } = useSettings();
-
 // Format distance for navigation display:
 //   metric  — below 1 km: "350 m", above: "1.2 km"
 //   imperial — below 1 mi: "600 yd", above: "1.2 mi"
