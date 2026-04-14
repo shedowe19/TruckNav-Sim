@@ -87,6 +87,7 @@ export const en: Locale = {
         metric: "Metric",
         imperial: "Imperial",
         guidedNavigation: "Guided Navigation",
+        speedWarning: "Speed Warning",
         on: "On",
         off: "Off",
         resetDefaults: "Reset to Defaults",
@@ -125,5 +126,6 @@ export const en: Locale = {
         nowExitHighway: "Take the exit now",
         arrived: "You have reached your destination",
         recalculating: "Recalculating route",
+        speedWarning: "Speed limit of {limit} exceeded, please check your speed",
     },
 } as const;

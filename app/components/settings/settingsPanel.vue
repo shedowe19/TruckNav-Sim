@@ -17,6 +17,9 @@ const isTextThemeLight = computed(
 const hasGuidedNavigation = computed(
     () => activeSettings.value.hasTurnNavigation === true,
 );
+const hasSpeedWarning = computed(
+    () => activeSettings.value.hasSpeedWarning === true,
+);
 
 const selectedExpansion = computed(() => {
     return settings.value.selectedGame === "ets2"
@@ -41,6 +44,10 @@ function toggleGuidedNavigation() {
         "hasTurnNavigation",
         hasGuidedNavigation.value ? false : true,
     );
+}
+
+function toggleSpeedWarning() {
+    updateProfile("hasSpeedWarning", !hasSpeedWarning.value);
 }
 </script>
 
@@ -163,6 +170,29 @@ function toggleGuidedNavigation() {
 
                 <button class="segment-btn" :class="{ active: !isMetric }">
                     <span class="label">{{ t.settings.imperial }}</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="option setting">
+            <div class="option-title">
+                <Icon name="lucide:gauge" size="24" />
+                <p>{{ t.settings.speedWarning }}</p>
+            </div>
+
+            <div class="segmented-control" @click="toggleSpeedWarning">
+                <button
+                    class="segment-btn"
+                    :class="{ active: hasSpeedWarning }"
+                >
+                    <span class="label">{{ t.settings.on }}</span>
+                </button>
+
+                <button
+                    class="segment-btn"
+                    :class="{ activeOff: !hasSpeedWarning }"
+                >
+                    <span class="label">{{ t.settings.off }}</span>
                 </button>
             </div>
         </div>

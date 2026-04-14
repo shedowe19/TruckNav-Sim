@@ -12,6 +12,7 @@ export interface GameProfile {
     ownedDlcs: number[];
     lastDestination: [number, number] | null;
     hasTurnNavigation: boolean;
+    hasSpeedWarning: boolean;
 }
 
 export interface AppSettingsState {
@@ -31,6 +32,7 @@ const DEFAULT_PROFILE: GameProfile = {
     ownedDlcs: Array.from({ length: 10 }, (_, i) => i + 1),
     lastDestination: null,
     hasTurnNavigation: true,
+    hasSpeedWarning: false,
 };
 
 const DEFAULT_SETTINGS: AppSettingsState = {

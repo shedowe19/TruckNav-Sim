@@ -107,7 +107,7 @@ const {
 //
 //
 // Voice Navigation
-const { checkAnnouncement, resetVoice, announceArrived } = useVoiceNavigation();
+const { checkAnnouncement, checkSpeedWarning, resetVoice, announceArrived } = useVoiceNavigation();
 
 //
 //
@@ -388,6 +388,9 @@ function onTelemetryUpdate() {
     if (!truckCoords.value || !map.value) return;
 
     followTruck(truckCoords.value, truckHeading.value);
+
+    // Speed warning — works regardless of whether a route is active
+    checkSpeedWarning(truckSpeed.value, speedLimit.value);
 
     if (isRouteActive.value) {
         updateRouteProgress(

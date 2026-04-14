@@ -85,6 +85,7 @@ export const de = {
         metric: "Metrisch",
         imperial: "Imperial",
         guidedNavigation: "Geführte Navigation",
+        speedWarning: "Geschwindigkeitswarnung",
         on: "An",
         off: "Aus",
         resetDefaults: "Auf Standards zurücksetzen",
@@ -123,6 +124,7 @@ export const de = {
         nowExitHighway: "Jetzt die Autobahn verlassen",
         arrived: "Sie haben Ihr Ziel erreicht",
         recalculating: "Route wird neu berechnet",
+        speedWarning: "Höchstgeschwindigkeit von {limit} überschritten, kontrollieren Sie Ihre Geschwindigkeit",
     },
 } as const;
 

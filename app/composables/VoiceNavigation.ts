@@ -21,6 +21,12 @@ let _lastTurnType: TurnType | null = null;
 let _cachedVoices: SpeechSynthesisVoice[] = [];
 let _voicesLoaded = false;
 
+// Speed warning state
+const SPEED_WARN_TOLERANCE_KMH = 3;  // only warn when this many km/h over the limit
+const SPEED_WARN_COOLDOWN_MS   = 30_000; // min 30 s between repeat warnings
+let _speedWarnActive    = false;
+let _speedWarnLastTime  = 0;
+
 /** Returns true if we are running inside a Capacitor native shell (Android/iOS). */
 function isNative(): boolean {
     return Capacitor.isNativePlatform();
@@ -242,6 +248,33 @@ export const useVoiceNavigation = () => {
         speak(`${v.inDistance} ${v.oneKilometer}, ${v.turnLeft}`);
     };
 
+    const checkSpeedWarning = (truckSpeedKmH: number, limitKmH: number) => {
+        if (!voiceEnabled.value) return;
+        const { activeSettings } = useSettings();
+        if (!activeSettings.value.hasSpeedWarning) return;
+        if (limitKmH <= 0) return; // no limit data (ferry, no zone, etc.)
+
+        const isOver = truckSpeedKmH > limitKmH + SPEED_WARN_TOLERANCE_KMH;
+
+        if (!isOver) {
+            _speedWarnActive = false;
+            return;
+        }
+
+        const now = Date.now();
+        if (_speedWarnActive && now - _speedWarnLastTime < SPEED_WARN_COOLDOWN_MS) return;
+
+        _speedWarnActive  = true;
+        _speedWarnLastTime = now;
+
+        const displayLimit =
+            activeSettings.value.units === "imperial"
+                ? Math.round(limitKmH * 0.621371)
+                : Math.round(limitKmH);
+
+        speak(t.value.voice.speedWarning.replace("{limit}", String(displayLimit)));
+    };
+
     const resetVoice = () => {
         if (isNative()) {
             import("@capacitor-community/text-to-speech").then(({ TextToSpeech }) =>
@@ -260,6 +293,7 @@ export const useVoiceNavigation = () => {
         setVoiceEnabled,
         testVoice,
         checkAnnouncement,
+        checkSpeedWarning,
         announceArrived,
         announceRecalculating,
         resetVoice,
