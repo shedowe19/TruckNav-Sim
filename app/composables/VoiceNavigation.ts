@@ -346,7 +346,18 @@ export const useVoiceNavigation = () => {
         const synth = getSynth();
         if (!synth) return [];
 
-        // Poll every 100 ms for up to 2 s — more reliable than voiceschanged in Electron
+        // Electron quirk: getVoices() returns [] until the TTS service initialises,
+        // which only happens after the first speak() call. Fire a silent utterance
+        // to wake the service, then poll until voices appear.
+        if (synth.getVoices().length === 0) {
+            const dummy = new SpeechSynthesisUtterance(" ");
+            dummy.volume = 0;
+            dummy.rate = 10;
+            synth.speak(dummy);
+            synth.cancel();
+        }
+
+        // Poll every 100 ms for up to 2 s
         let voices: SpeechSynthesisVoice[] = [];
         for (let i = 0; i < 20; i++) {
             voices = synth.getVoices();
