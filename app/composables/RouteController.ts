@@ -841,12 +841,12 @@ export const useRouteController = (
                 // Light EMA smoothing to reduce display jitter from GPS fluctuation.
                 // Snap immediately on init (prev === 0) or after a recalculation (large jump).
                 const prev = nextTurnDistance.value;
-                const distKm =
+                const smoothed =
                     prev === 0 || Math.abs(rawDist - prev) > 0.5
                         ? rawDist
                         : prev * 0.4 + rawDist * 0.6;
 
-                nextTurnDistance.value = distKm;
+                nextTurnDistance.value = +smoothed.toFixed(2);
 
                 // 2. Base the removal threshold on the END of the turn (Arrow Head)
                 const targetExitKm =
