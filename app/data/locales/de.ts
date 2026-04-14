@@ -74,7 +74,7 @@ export const de = {
     settings: {
         title: "Einstellungen",
         description: "App-Einstellungen und Anpassungen",
-        ownedDlcs: "Besessene DLCs",
+        ownedDlcs: "DLCs im Besitz",
         active: "aktiv",
         theme: "Farb-Theme",
         route: "Route",
