@@ -15,11 +15,21 @@ const displayTurns = computed(() => {
     return props.upcomingTurns.slice(1, 3);
 });
 
-const { kmToUserUnits, distanceUnit } = useUnitConversion();
+const { activeSettings } = useSettings();
 
-const routeDistanceConverted = computed(() =>
-    kmToUserUnits(props.distanceToNextTurn),
-);
+// Format distance for navigation display:
+//   metric  — below 1 km: "350 m", above: "1.2 km"
+//   imperial — below 1 mi: "600 yd", above: "1.2 mi"
+const formattedDistance = computed(() => {
+    const km = props.distanceToNextTurn;
+    if (activeSettings.value.units !== "metric") {
+        const mi = km * 0.621371;
+        if (mi < 1) return `${Math.round(km * 1760)} yd`;
+        return `${mi.toFixed(1)} mi`;
+    }
+    if (km < 1) return `${Math.round(km * 1000)} m`;
+    return `${km.toFixed(1)} km`;
+});
 </script>
 
 <template>
@@ -37,7 +47,7 @@ const routeDistanceConverted = computed(() =>
             />
         </div>
         <div class="turn-info">
-            <p>{{ routeDistanceConverted }} {{ distanceUnit }}</p>
+            <p>{{ formattedDistance }}</p>
             <p>{{ nextInstruction }}</p>
         </div>
     </div>

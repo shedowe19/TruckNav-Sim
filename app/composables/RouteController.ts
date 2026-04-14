@@ -846,7 +846,7 @@ export const useRouteController = (
                         ? rawDist
                         : prev * 0.4 + rawDist * 0.6;
 
-                nextTurnDistance.value = +smoothed.toFixed(2);
+                nextTurnDistance.value = smoothed;
 
                 // 2. Base the removal threshold on the END of the turn (Arrow Head)
                 const targetExitKm =
