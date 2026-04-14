@@ -22,19 +22,70 @@ let _cachedVoices: SpeechSynthesisVoice[] = [];
 let _voicesLoaded = false;
 let _elevenLabsAudio: HTMLAudioElement | null = null;
 
+// ─── ElevenLabs audio cache ───────────────────────────────────────────────────
+// Two-level cache: in-memory (instant) + IndexedDB (cross-session).
+// Key format: "el:<voiceId>:<text>"
+const _elMemCache = new Map<string, string>(); // key → data: URL
+const EL_DB_NAME = "truck-nav-tts";
+const EL_STORE   = "audio";
+
+function _elOpenDb(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(EL_DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(EL_STORE);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => reject(req.error);
+    });
+}
+
+async function _elDbGet(key: string): Promise<string | null> {
+    try {
+        const db = await _elOpenDb();
+        return new Promise((resolve) => {
+            const req = db.transaction(EL_STORE, "readonly").objectStore(EL_STORE).get(key);
+            req.onsuccess = () => resolve((req.result as string) ?? null);
+            req.onerror   = () => resolve(null);
+        });
+    } catch { return null; }
+}
+
+async function _elDbSet(key: string, dataUrl: string): Promise<void> {
+    try {
+        const db = await _elOpenDb();
+        await new Promise<void>((resolve) => {
+            const tx = db.transaction(EL_STORE, "readwrite");
+            tx.objectStore(EL_STORE).put(dataUrl, key);
+            tx.oncomplete = () => resolve();
+            tx.onerror    = () => resolve();
+        });
+    } catch {}
+}
+
+function _elPlayDataUrl(dataUrl: string): void {
+    if (_elevenLabsAudio) { _elevenLabsAudio.pause(); }
+    const audio = new Audio(dataUrl);
+    _elevenLabsAudio = audio;
+    audio.play().catch(() => {});
+    audio.onended = () => { _elevenLabsAudio = null; };
+}
+
 // ─── ElevenLabs TTS ──────────────────────────────────────────────────────────
 async function speakElevenLabs(text: string, apiKey: string, voiceId: string): Promise<void> {
-    if (_elevenLabsAudio) {
-        _elevenLabsAudio.pause();
-        _elevenLabsAudio = null;
-    }
+    const key = `el:${voiceId}:${text}`;
+
+    // 1. In-memory cache hit
+    const mem = _elMemCache.get(key);
+    if (mem) { _elPlayDataUrl(mem); return; }
+
+    // 2. IndexedDB cache hit
+    const db = await _elDbGet(key);
+    if (db) { _elMemCache.set(key, db); _elPlayDataUrl(db); return; }
+
+    // 3. Fetch from ElevenLabs API
     try {
         const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
             method: "POST",
-            headers: {
-                "xi-api-key": apiKey,
-                "Content-Type": "application/json",
-            },
+            headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
             body: JSON.stringify({
                 text,
                 model_id: "eleven_multilingual_v2",
@@ -43,20 +94,19 @@ async function speakElevenLabs(text: string, apiKey: string, voiceId: string): P
         });
         if (!resp.ok) return;
 
-        // Convert to data: URL — blob: URLs are blocked by Electron's CSP
-        // (no media-src blob: directive), but data: is explicitly allowed.
+        // Convert to data: URL — blob: is blocked by Electron's CSP, data: is allowed
         const blob = await resp.blob();
         const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
+            reader.onload  = () => resolve(reader.result as string);
             reader.onerror = reject;
             reader.readAsDataURL(blob);
         });
 
-        const audio = new Audio(dataUrl);
-        _elevenLabsAudio = audio;
-        audio.play().catch(() => {});
-        audio.onended = () => { _elevenLabsAudio = null; };
+        // Store in both caches, then play
+        _elMemCache.set(key, dataUrl);
+        _elDbSet(key, dataUrl); // fire-and-forget
+        _elPlayDataUrl(dataUrl);
     } catch {
         // Fail silently — navigation continues without voice
     }
