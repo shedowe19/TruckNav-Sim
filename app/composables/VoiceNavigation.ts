@@ -42,12 +42,21 @@ async function speakElevenLabs(text: string, apiKey: string, voiceId: string): P
             }),
         });
         if (!resp.ok) return;
+
+        // Convert to data: URL — blob: URLs are blocked by Electron's CSP
+        // (no media-src blob: directive), but data: is explicitly allowed.
         const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        const audio = new Audio(dataUrl);
         _elevenLabsAudio = audio;
-        audio.play();
-        audio.onended = () => URL.revokeObjectURL(url);
+        audio.play().catch(() => {});
+        audio.onended = () => { _elevenLabsAudio = null; };
     } catch {
         // Fail silently — navigation continues without voice
     }
