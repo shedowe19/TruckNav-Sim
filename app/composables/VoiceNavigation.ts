@@ -3,14 +3,20 @@ import type { DirectionStep } from "~/assets/utils/routing/directions";
 
 type TurnType = DirectionStep["type"];
 
-// Thresholds in km at which to announce (TomTom-style)
-const THRESHOLDS = [1.0, 0.5, 0.0] as const;
-type Threshold = (typeof THRESHOLDS)[number];
+// Thresholds in km at which to announce (TomTom-style).
+// Each threshold fires when distance first drops BELOW its trigger distance.
+const THRESHOLDS = [
+    { key: 1.0, triggerBelow: 1.1 },
+    { key: 0.5, triggerBelow: 0.55 },
+    { key: 0.2, triggerBelow: 0.25 },
+    { key: 0.0, triggerBelow: 0.08 },
+] as const;
+type ThresholdKey = (typeof THRESHOLDS)[number]["key"];
 
 const VOICE_STORAGE_KEY = "truck-nav-voice";
 
 // ─── Module-level shared state ────────────────────────────────────────────────
-let _firedThresholds: Set<Threshold> = new Set();
+let _firedThresholds: Set<ThresholdKey> = new Set();
 let _lastTurnType: TurnType | null = null;
 let _cachedVoices: SpeechSynthesisVoice[] = [];
 let _voicesLoaded = false;
@@ -201,26 +207,19 @@ export const useVoiceNavigation = () => {
             _lastTurnType = turnType;
         }
 
-        for (const threshold of THRESHOLDS) {
-            if (_firedThresholds.has(threshold)) continue;
-
-            const withinBand =
-                threshold === 0.0
-                    ? distanceKm < 0.08
-                    : threshold === 0.5
-                      ? distanceKm <= 0.55 && distanceKm > 0.08
-                      : distanceKm <= 1.1 && distanceKm > 0.55;
-
-            if (withinBand) {
-                _firedThresholds.add(threshold);
-
+        // Check from largest to smallest: fire the first threshold we've dropped below.
+        // Using "dropped below" instead of "within band" ensures announcements are
+        // never skipped when GPS fluctuations cause the distance to jump over a band.
+        for (const { key, triggerBelow } of THRESHOLDS) {
+            if (_firedThresholds.has(key)) continue;
+            if (distanceKm < triggerBelow) {
+                _firedThresholds.add(key);
                 const phrase =
-                    threshold === 0.0
+                    key === 0.0
                         ? buildNowPhrase(turnType)
                         : buildPrepPhrase(distanceKm, turnType);
-
                 speak(phrase);
-                break;
+                break; // one announcement per tick — next tick handles the rest
             }
         }
     };
