@@ -226,10 +226,12 @@ export const useVoiceNavigation = () => {
             utterance.pitch = 1.0;
             utterance.volume = 1.0;
 
-            // Find best matching voice
-            const match =
-                _cachedVoices.find((v) => v.lang === langTag) ||
-                _cachedVoices.find((v) => v.lang.startsWith(locale.value));
+            // Use saved voice preference, or fall back to best locale match
+            const preferred = settings.value.selectedVoiceName;
+            const match = preferred
+                ? _cachedVoices.find((v) => v.name === preferred)
+                : _cachedVoices.find((v) => v.lang === langTag) ||
+                  _cachedVoices.find((v) => v.lang.startsWith(locale.value));
 
             if (match) utterance.voice = match;
 
@@ -323,21 +325,44 @@ export const useVoiceNavigation = () => {
     };
 
     const getVoicesForLocale = async (): Promise<{ label: string; voiceURI: string; index: number }[]> => {
-        if (!isNative()) return [];
-        try {
-            const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
-            const { voices } = await TextToSpeech.getSupportedVoices();
-            return voices
-                .map((v, i) => ({
-                    voiceURI: v.voiceURI,
-                    label: (isGoogleVoice(v.voiceURI) ? "Google - " : "") + v.voiceURI + (v.localService ? " (offline)" : " (online)"),
-                    index: i,
-                    lang: v.lang,
-                }))
-                .filter(({ lang }) => lang.toLowerCase().startsWith(locale.value.toLowerCase()));
-        } catch {
-            return [];
+        if (isNative()) {
+            try {
+                const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
+                const { voices } = await TextToSpeech.getSupportedVoices();
+                return voices
+                    .map((v, i) => ({
+                        voiceURI: v.voiceURI,
+                        label: (isGoogleVoice(v.voiceURI) ? "Google - " : "") + v.voiceURI + (v.localService ? " (offline)" : " (online)"),
+                        index: i,
+                        lang: v.lang,
+                    }))
+                    .filter(({ lang }) => lang.toLowerCase().startsWith(locale.value.toLowerCase()));
+            } catch {
+                return [];
+            }
         }
+
+        // Web / Electron: use cached Web Speech API voices
+        const synth = getSynth();
+        if (!synth) return [];
+
+        let voices = _cachedVoices.length > 0 ? _cachedVoices : synth.getVoices();
+
+        // Chrome loads voices async — wait up to 1 s if still empty
+        if (voices.length === 0) {
+            await new Promise<void>((resolve) => {
+                const onChanged = () => { synth.removeEventListener("voiceschanged", onChanged); resolve(); };
+                synth.addEventListener("voiceschanged", onChanged);
+                setTimeout(resolve, 1000);
+            });
+            voices = synth.getVoices();
+            if (voices.length > 0) _cachedVoices = voices;
+        }
+
+        const langTag = locale.value === "de" ? "de-DE" : "en-GB";
+        return voices
+            .map((v, i) => ({ voiceURI: v.name, label: v.name, index: i, lang: v.lang }))
+            .filter(({ lang }) => lang === langTag || lang.startsWith(locale.value));
     };
 
     const clearVoiceCache = () => _nativeVoiceCache.clear();

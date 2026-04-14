@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { onMounted, ref } from "vue";
-import { Capacitor } from "@capacitor/core";
 import { ets2Expansions } from "~/data/ets2/ets2Expansions";
 import { atsExpansions } from "~/data/ats/atsExpansions";
 
@@ -11,7 +10,6 @@ const { voiceEnabled, setVoiceEnabled, testVoice, getVoicesForLocale, clearVoice
 
 const props = defineProps<{ closePanel: () => void }>();
 
-const isNative = Capacitor.isNativePlatform();
 const availableVoices = ref<{ label: string; voiceURI: string; index: number }[]>([]);
 
 const selectedVoiceName = computed({
@@ -23,9 +21,7 @@ const selectedVoiceName = computed({
 });
 
 onMounted(async () => {
-    if (isNative) {
-        availableVoices.value = await getVoicesForLocale();
-    }
+    availableVoices.value = await getVoicesForLocale();
 });
 
 const isDlcPanelOpened = ref(false);
@@ -176,7 +172,7 @@ function toggleSpeedWarning() {
             </button>
         </div>
 
-        <div v-if="isNative && availableVoices.length > 0" class="option setting" style="flex-direction: column; align-items: flex-start; gap: 1rem;">
+        <div v-if="availableVoices.length > 0" class="option setting" style="flex-direction: column; align-items: flex-start; gap: 1rem;">
             <div class="option-title">
                 <Icon name="lucide:mic" size="24" />
                 <p>{{ t.settings.navigationVoice }}</p>
