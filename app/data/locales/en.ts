@@ -95,6 +95,8 @@ export const en: Locale = {
         language: "Language",
         voice: "Voice Navigation",
         voiceTest: "Test Voice",
+        navigationVoice: "Navigation Voice",
+        voiceAuto: "Automatic",
     },
 
     // Voice Navigation

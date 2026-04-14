@@ -93,6 +93,8 @@ export const de = {
         language: "Sprache",
         voice: "Sprachnavigation",
         voiceTest: "Stimme testen",
+        navigationVoice: "Navigationsstimme",
+        voiceAuto: "Automatisch",
     },
 
     // Voice Navigation

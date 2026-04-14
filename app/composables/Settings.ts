@@ -18,6 +18,7 @@ export interface GameProfile {
 export interface AppSettingsState {
     selectedGame: GameType;
     savedIP: string | null;
+    selectedVoiceName: string; // native TTS voice name, "" = auto
     profiles: {
         ets2: GameProfile;
         ats: GameProfile;
@@ -38,6 +39,7 @@ const DEFAULT_PROFILE: GameProfile = {
 const DEFAULT_SETTINGS: AppSettingsState = {
     selectedGame: null,
     savedIP: null,
+    selectedVoiceName: "",
     profiles: {
         ets2: { ...DEFAULT_PROFILE, themeColor: "#fbc02d", units: "metric" },
         ats: {

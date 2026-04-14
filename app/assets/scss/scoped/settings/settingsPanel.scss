@@ -81,6 +81,15 @@
     }
 }
 
+.voice-select {
+    width: 100%;
+    background-color: $default-background-color-dark;
+    color: $white-font-text;
+    border: none;
+    appearance: none;
+    cursor: pointer;
+}
+
 /**
  * COLOR SETTINGS
  */

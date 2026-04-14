@@ -21,6 +21,45 @@ let _lastTurnType: TurnType | null = null;
 let _cachedVoices: SpeechSynthesisVoice[] = [];
 let _voicesLoaded = false;
 
+// ─── Native voice resolver ────────────────────────────────────────────────────
+// Cache key: "<langTag>:<preferredName>" so each combination is resolved once.
+// Priority: user preference → Google voice → non-Samsung voice → first matching → plugin default.
+const _nativeVoiceCache = new Map<string, number>(); // cacheKey → voice index (-1 = use default)
+
+async function resolveNativeVoice(
+    langTag: string,
+    localePrefix: string,
+    preferredName: string,
+): Promise<number | undefined> {
+    const cacheKey = `${langTag}:${preferredName}`;
+    if (_nativeVoiceCache.has(cacheKey)) {
+        const idx = _nativeVoiceCache.get(cacheKey)!;
+        return idx >= 0 ? idx : undefined;
+    }
+    try {
+        const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
+        const { voices } = await TextToSpeech.getSupportedVoices();
+
+        const matching = voices
+            .map((v, i) => ({ v, i }))
+            .filter(({ v }) => v.lang.toLowerCase().startsWith(localePrefix.toLowerCase()));
+
+        let pick = preferredName
+            ? matching.find(({ v }) => v.name === preferredName)
+            : undefined;
+        if (!pick) pick = matching.find(({ v }) => v.name.toLowerCase().includes("google"));
+        if (!pick) pick = matching.find(({ v }) => !v.name.toLowerCase().includes("samsung"));
+        if (!pick) pick = matching[0];
+
+        const idx = pick ? pick.i : -1;
+        _nativeVoiceCache.set(cacheKey, idx);
+        return idx >= 0 ? idx : undefined;
+    } catch {
+        _nativeVoiceCache.set(cacheKey, -1);
+        return undefined;
+    }
+}
+
 // Speed warning state
 const SPEED_WARN_TOLERANCE_KMH = 3;  // only warn when this many km/h over the limit
 const SPEED_WARN_COOLDOWN_MS   = 30_000; // min 30 s between repeat warnings
@@ -136,6 +175,8 @@ export const useVoiceNavigation = () => {
 
     // ── Core speech function ───────────────────────────────────────────────
 
+    const { settings } = useSettings();
+
     const speak = (text: string) => {
         if (!import.meta.client || !text) return;
 
@@ -143,7 +184,8 @@ export const useVoiceNavigation = () => {
 
         // ── Native Android / iOS: use Capacitor TTS ──────────────────────
         if (isNative()) {
-            import("@capacitor-community/text-to-speech").then(({ TextToSpeech }) =>
+            import("@capacitor-community/text-to-speech").then(async ({ TextToSpeech }) => {
+                const voiceIndex = await resolveNativeVoice(langTag, locale.value, settings.value.selectedVoiceName ?? "");
                 TextToSpeech.speak({
                     text,
                     lang: langTag,
@@ -151,8 +193,9 @@ export const useVoiceNavigation = () => {
                     pitch: 1.0,
                     volume: 1.0,
                     category: "ambient",
-                })
-            ).catch(() => {
+                    ...(voiceIndex !== undefined ? { voice: voiceIndex } : {}),
+                });
+            }).catch(() => {
                 // Fail silently — navigation continues without voice
             });
             return;
@@ -275,6 +318,21 @@ export const useVoiceNavigation = () => {
         speak(t.value.voice.speedWarning.replace("{limit}", String(displayLimit)));
     };
 
+    const getVoicesForLocale = async (): Promise<{ name: string; index: number }[]> => {
+        if (!isNative()) return [];
+        try {
+            const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
+            const { voices } = await TextToSpeech.getSupportedVoices();
+            return voices
+                .map((v, i) => ({ name: v.name, index: i, lang: v.lang }))
+                .filter(({ lang }) => lang.toLowerCase().startsWith(locale.value.toLowerCase()));
+        } catch {
+            return [];
+        }
+    };
+
+    const clearVoiceCache = () => _nativeVoiceCache.clear();
+
     const resetVoice = () => {
         if (isNative()) {
             import("@capacitor-community/text-to-speech").then(({ TextToSpeech }) =>
@@ -298,5 +356,7 @@ export const useVoiceNavigation = () => {
         announceRecalculating,
         resetVoice,
         isSpeechSupported,
+        getVoicesForLocale,
+        clearVoiceCache,
     };
 };

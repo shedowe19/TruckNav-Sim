@@ -1,13 +1,32 @@
 <script lang="ts" setup>
+import { onMounted, ref } from "vue";
+import { Capacitor } from "@capacitor/core";
 import { ets2Expansions } from "~/data/ets2/ets2Expansions";
 import { atsExpansions } from "~/data/ats/atsExpansions";
 
-const { settings, activeSettings, updateProfile, resetSettings } =
+const { settings, activeSettings, updateProfile, updateGlobal, resetSettings } =
     useSettings();
 const { t, locale, setLocale } = useI18n();
-const { voiceEnabled, setVoiceEnabled, testVoice } = useVoiceNavigation();
+const { voiceEnabled, setVoiceEnabled, testVoice, getVoicesForLocale, clearVoiceCache } = useVoiceNavigation();
 
 const props = defineProps<{ closePanel: () => void }>();
+
+const isNative = Capacitor.isNativePlatform();
+const availableVoices = ref<{ name: string; index: number }[]>([]);
+
+const selectedVoiceName = computed({
+    get: () => settings.value.selectedVoiceName ?? "",
+    set: (val: string) => {
+        updateGlobal("selectedVoiceName", val);
+        clearVoiceCache();
+    },
+});
+
+onMounted(async () => {
+    if (isNative) {
+        availableVoices.value = await getVoicesForLocale();
+    }
+});
 
 const isDlcPanelOpened = ref(false);
 const isMetric = computed(() => activeSettings.value.units === "metric");
@@ -155,6 +174,19 @@ function toggleSpeedWarning() {
                 <Icon name="lucide:play" size="16" />
                 {{ t.settings.voiceTest }}
             </button>
+        </div>
+
+        <div v-if="isNative && availableVoices.length > 0" class="option setting" style="flex-direction: column; align-items: flex-start; gap: 1rem;">
+            <div class="option-title">
+                <Icon name="lucide:mic" size="24" />
+                <p>{{ t.settings.navigationVoice }}</p>
+            </div>
+            <select v-model="selectedVoiceName" class="nav-btn settings-btn voice-select">
+                <option value="">{{ t.settings.voiceAuto }}</option>
+                <option v-for="voice in availableVoices" :key="voice.index" :value="voice.name">
+                    {{ voice.name }}
+                </option>
+            </select>
         </div>
 
         <div class="option setting">
