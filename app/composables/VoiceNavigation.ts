@@ -346,23 +346,23 @@ export const useVoiceNavigation = () => {
         const synth = getSynth();
         if (!synth) return [];
 
-        let voices = _cachedVoices.length > 0 ? _cachedVoices : synth.getVoices();
-
-        // Chrome loads voices async — wait up to 1 s if still empty
-        if (voices.length === 0) {
-            await new Promise<void>((resolve) => {
-                const onChanged = () => { synth.removeEventListener("voiceschanged", onChanged); resolve(); };
-                synth.addEventListener("voiceschanged", onChanged);
-                setTimeout(resolve, 1000);
-            });
+        // Poll every 100 ms for up to 2 s — more reliable than voiceschanged in Electron
+        let voices: SpeechSynthesisVoice[] = [];
+        for (let i = 0; i < 20; i++) {
             voices = synth.getVoices();
-            if (voices.length > 0) _cachedVoices = voices;
+            if (voices.length > 0) break;
+            await new Promise((r) => setTimeout(r, 100));
         }
 
+        if (voices.length > 0) _cachedVoices = voices;
+
         const langTag = locale.value === "de" ? "de-DE" : "en-GB";
-        return voices
+        const filtered = voices
             .map((v, i) => ({ voiceURI: v.name, label: v.name, index: i, lang: v.lang }))
             .filter(({ lang }) => lang === langTag || lang.startsWith(locale.value));
+
+        // Fallback: if strict filter yields nothing, return all voices so picker is always usable
+        return filtered.length > 0 ? filtered : voices.map((v, i) => ({ voiceURI: v.name, label: v.name, index: i, lang: v.lang }));
     };
 
     const clearVoiceCache = () => _nativeVoiceCache.clear();
