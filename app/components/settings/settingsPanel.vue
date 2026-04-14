@@ -12,7 +12,7 @@ const { voiceEnabled, setVoiceEnabled, testVoice, getVoicesForLocale, clearVoice
 const props = defineProps<{ closePanel: () => void }>();
 
 const isNative = Capacitor.isNativePlatform();
-const availableVoices = ref<{ name: string; index: number }[]>([]);
+const availableVoices = ref<{ label: string; voiceURI: string; index: number }[]>([]);
 
 const selectedVoiceName = computed({
     get: () => settings.value.selectedVoiceName ?? "",
@@ -183,8 +183,8 @@ function toggleSpeedWarning() {
             </div>
             <select v-model="selectedVoiceName" class="nav-btn settings-btn voice-select">
                 <option value="">{{ t.settings.voiceAuto }}</option>
-                <option v-for="voice in availableVoices" :key="voice.index" :value="voice.name">
-                    {{ voice.name }}
+                <option v-for="voice in availableVoices" :key="voice.index" :value="voice.voiceURI">
+                    {{ voice.label }}
                 </option>
             </select>
         </div>

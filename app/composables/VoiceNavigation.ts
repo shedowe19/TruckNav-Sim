@@ -45,10 +45,10 @@ async function resolveNativeVoice(
             .filter(({ v }) => v.lang.toLowerCase().startsWith(localePrefix.toLowerCase()));
 
         let pick = preferredName
-            ? matching.find(({ v }) => v.name === preferredName)
+            ? matching.find(({ v }) => v.voiceURI === preferredName)
             : undefined;
-        if (!pick) pick = matching.find(({ v }) => v.name.toLowerCase().includes("google"));
-        if (!pick) pick = matching.find(({ v }) => !v.name.toLowerCase().includes("samsung"));
+        if (!pick) pick = matching.find(({ v }) => v.voiceURI.toLowerCase().includes("google"));
+        if (!pick) pick = matching.find(({ v }) => !v.voiceURI.toLowerCase().includes("samsung"));
         if (!pick) pick = matching[0];
 
         const idx = pick ? pick.i : -1;
@@ -318,13 +318,18 @@ export const useVoiceNavigation = () => {
         speak(t.value.voice.speedWarning.replace("{limit}", String(displayLimit)));
     };
 
-    const getVoicesForLocale = async (): Promise<{ name: string; index: number }[]> => {
+    const getVoicesForLocale = async (): Promise<{ label: string; voiceURI: string; index: number }[]> => {
         if (!isNative()) return [];
         try {
             const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
             const { voices } = await TextToSpeech.getSupportedVoices();
             return voices
-                .map((v, i) => ({ name: v.name, index: i, lang: v.lang }))
+                .map((v, i) => ({
+                    voiceURI: v.voiceURI,
+                    label: v.voiceURI + (v.localService ? " (offline)" : " (online)"),
+                    index: i,
+                    lang: v.lang,
+                }))
                 .filter(({ lang }) => lang.toLowerCase().startsWith(locale.value.toLowerCase()));
         } catch {
             return [];
