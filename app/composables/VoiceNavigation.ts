@@ -23,8 +23,12 @@ let _voicesLoaded = false;
 
 // ─── Native voice resolver ────────────────────────────────────────────────────
 // Cache key: "<langTag>:<preferredName>" so each combination is resolved once.
-// Priority: user preference → Google voice → non-Samsung voice → first matching → plugin default.
+// Priority: user preference → Google voice (local) → Google voice (network) → first matching → plugin default.
 const _nativeVoiceCache = new Map<string, number>(); // cacheKey → voice index (-1 = use default)
+
+// Google TTS voices follow the pattern: "xx-xx-x-xxx-local" or "xx-xx-x-xxx-network"
+const GOOGLE_VOICE_RE = /^[a-z]{2}-[a-z]{2}-x-[a-z]+-(?:local|network)$/i;
+const isGoogleVoice = (voiceURI: string) => GOOGLE_VOICE_RE.test(voiceURI);
 
 async function resolveNativeVoice(
     langTag: string,
@@ -47,8 +51,8 @@ async function resolveNativeVoice(
         let pick = preferredName
             ? matching.find(({ v }) => v.voiceURI === preferredName)
             : undefined;
-        if (!pick) pick = matching.find(({ v }) => v.voiceURI.toLowerCase().includes("google"));
-        if (!pick) pick = matching.find(({ v }) => !v.voiceURI.toLowerCase().includes("samsung"));
+        if (!pick) pick = matching.find(({ v }) => isGoogleVoice(v.voiceURI) && v.localService);
+        if (!pick) pick = matching.find(({ v }) => isGoogleVoice(v.voiceURI));
         if (!pick) pick = matching[0];
 
         const idx = pick ? pick.i : -1;
@@ -326,7 +330,7 @@ export const useVoiceNavigation = () => {
             return voices
                 .map((v, i) => ({
                     voiceURI: v.voiceURI,
-                    label: v.voiceURI + (v.localService ? " (offline)" : " (online)"),
+                    label: (isGoogleVoice(v.voiceURI) ? "Google - " : "") + v.voiceURI + (v.localService ? " (offline)" : " (online)"),
                     index: i,
                     lang: v.lang,
                 }))
