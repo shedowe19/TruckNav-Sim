@@ -28,4 +28,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
         }),
 
     manualStartServer: () => ipcRenderer.send("manual-start-server"),
+    getSapiVoices: (): Promise<{ name: string; culture: string }[]> =>
+        ipcRenderer.invoke("get-sapi-voices"),
 });

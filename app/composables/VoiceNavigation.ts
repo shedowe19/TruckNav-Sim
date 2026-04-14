@@ -149,6 +149,17 @@ function initVoices() {
 
     load(); // may already be available (Firefox fills synchronously)
     synth.addEventListener("voiceschanged", load);
+
+    // Electron quirk: voiceschanged never fires until the TTS service is woken
+    // by a speak() call. Fire a silent utterance immediately so _cachedVoices
+    // is populated before the user opens settings.
+    if (!_voicesLoaded) {
+        const dummy = new SpeechSynthesisUtterance(" ");
+        dummy.volume = 0;
+        dummy.rate = 10;
+        synth.speak(dummy);
+        synth.cancel();
+    }
 }
 
 // ─── Composable ──────────────────────────────────────────────────────────────
@@ -391,13 +402,21 @@ export const useVoiceNavigation = () => {
             }
         }
 
-        // Web / Electron: use cached Web Speech API voices
+        // Electron: get SAPI voices from main process via IPC — reliable, no timing issues
+        const electronAPI = (window as any).electronAPI;
+        if (electronAPI?.getSapiVoices) {
+            const sapiVoices: { name: string; culture: string }[] = await electronAPI.getSapiVoices();
+            const filtered = sapiVoices.filter((v) =>
+                v.culture.toLowerCase().startsWith(locale.value.toLowerCase()),
+            );
+            const list = filtered.length > 0 ? filtered : sapiVoices;
+            return list.map((v, i) => ({ voiceURI: v.name, label: v.name, index: i }));
+        }
+
+        // Web browser: use Web Speech API with polling fallback
         const synth = getSynth();
         if (!synth) return [];
 
-        // Electron quirk: getVoices() returns [] until the TTS service initialises,
-        // which only happens after the first speak() call. Fire a silent utterance
-        // to wake the service, then poll until voices appear.
         if (synth.getVoices().length === 0) {
             const dummy = new SpeechSynthesisUtterance(" ");
             dummy.volume = 0;
@@ -406,23 +425,21 @@ export const useVoiceNavigation = () => {
             synth.cancel();
         }
 
-        // Poll every 100 ms for up to 2 s
         let voices: SpeechSynthesisVoice[] = [];
         for (let i = 0; i < 20; i++) {
             voices = synth.getVoices();
             if (voices.length > 0) break;
             await new Promise((r) => setTimeout(r, 100));
         }
-
         if (voices.length > 0) _cachedVoices = voices;
 
         const langTag = locale.value === "de" ? "de-DE" : "en-GB";
         const filtered = voices
             .map((v, i) => ({ voiceURI: v.name, label: v.name, index: i, lang: v.lang }))
             .filter(({ lang }) => lang === langTag || lang.startsWith(locale.value));
-
-        // Fallback: if strict filter yields nothing, return all voices so picker is always usable
-        return filtered.length > 0 ? filtered : voices.map((v, i) => ({ voiceURI: v.name, label: v.name, index: i, lang: v.lang }));
+        return filtered.length > 0
+            ? filtered
+            : voices.map((v, i) => ({ voiceURI: v.name, label: v.name, index: i, lang: v.lang }));
     };
 
     const clearVoiceCache = () => _nativeVoiceCache.clear();

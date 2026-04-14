@@ -489,3 +489,33 @@ ipcMain.on(
 ipcMain.on("manual-start-server", () => {
     startTelemetryServer();
 });
+
+ipcMain.handle("get-sapi-voices", () => {
+    if (process.platform !== "win32") return [];
+    return new Promise<{ name: string; culture: string }[]>((resolve) => {
+        const { exec } = require("child_process") as typeof import("child_process");
+        const cmd = [
+            "powershell",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Add-Type -AssemblyName System.Speech;",
+            "(New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices()",
+            "| ForEach-Object { $_.VoiceInfo.Name + '|' + $_.VoiceInfo.Culture }",
+        ].join(" ");
+        exec(cmd, { windowsHide: true }, (err, stdout) => {
+            if (err) { resolve([]); return; }
+            const voices = stdout
+                .trim()
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .map((l) => {
+                    const [name, culture] = l.split("|");
+                    return { name: (name ?? "").trim(), culture: (culture ?? "").trim() };
+                })
+                .filter((v) => v.name);
+            resolve(voices);
+        });
+    });
+});
