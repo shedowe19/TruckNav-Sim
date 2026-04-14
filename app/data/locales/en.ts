@@ -97,6 +97,14 @@ export const en: Locale = {
         voiceTest: "Test Voice",
         navigationVoice: "Navigation Voice",
         voiceAuto: "Automatic",
+        elevenLabs: "ElevenLabs TTS",
+        elevenLabsApiKey: "API Key",
+        elevenLabsApiKeyPlaceholder: "sk-...",
+        elevenLabsVoice: "Voice",
+        elevenLabsLoad: "Load Voices",
+        elevenLabsLoading: "Loading...",
+        elevenLabsNoKey: "Enter API key first",
+        elevenLabsActive: "Active",
     },
 
     // Voice Navigation

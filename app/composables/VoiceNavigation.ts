@@ -20,6 +20,38 @@ let _firedThresholds: Set<ThresholdKey> = new Set();
 let _lastTurnType: TurnType | null = null;
 let _cachedVoices: SpeechSynthesisVoice[] = [];
 let _voicesLoaded = false;
+let _elevenLabsAudio: HTMLAudioElement | null = null;
+
+// ─── ElevenLabs TTS ──────────────────────────────────────────────────────────
+async function speakElevenLabs(text: string, apiKey: string, voiceId: string): Promise<void> {
+    if (_elevenLabsAudio) {
+        _elevenLabsAudio.pause();
+        _elevenLabsAudio = null;
+    }
+    try {
+        const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+            method: "POST",
+            headers: {
+                "xi-api-key": apiKey,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                text,
+                model_id: "eleven_multilingual_v2",
+                voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+            }),
+        });
+        if (!resp.ok) return;
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        _elevenLabsAudio = audio;
+        audio.play();
+        audio.onended = () => URL.revokeObjectURL(url);
+    } catch {
+        // Fail silently — navigation continues without voice
+    }
+}
 
 // ─── Native voice resolver ────────────────────────────────────────────────────
 // Cache key: "<langTag>:<preferredName>" so each combination is resolved once.
@@ -185,6 +217,14 @@ export const useVoiceNavigation = () => {
         if (!import.meta.client || !text) return;
 
         const langTag = locale.value === "de" ? "de-DE" : "en-GB";
+
+        // ── ElevenLabs (all platforms) ────────────────────────────────────
+        const elKey = settings.value.elevenLabsApiKey;
+        const elVoice = settings.value.elevenLabsVoiceId;
+        if (elKey && elVoice) {
+            speakElevenLabs(text, elKey, elVoice);
+            return;
+        }
 
         // ── Native Android / iOS: use Capacitor TTS ──────────────────────
         if (isNative()) {
@@ -378,7 +418,25 @@ export const useVoiceNavigation = () => {
 
     const clearVoiceCache = () => _nativeVoiceCache.clear();
 
+    const getElevenLabsVoices = async (apiKey: string): Promise<{ voice_id: string; name: string }[]> => {
+        if (!apiKey) return [];
+        try {
+            const resp = await fetch("https://api.elevenlabs.io/v1/voices", {
+                headers: { "xi-api-key": apiKey },
+            });
+            if (!resp.ok) return [];
+            const data = await resp.json();
+            return (data.voices ?? []).map((v: any) => ({ voice_id: v.voice_id, name: v.name }));
+        } catch {
+            return [];
+        }
+    };
+
     const resetVoice = () => {
+        if (_elevenLabsAudio) {
+            _elevenLabsAudio.pause();
+            _elevenLabsAudio = null;
+        }
         if (isNative()) {
             import("@capacitor-community/text-to-speech").then(({ TextToSpeech }) =>
                 TextToSpeech.stop()
@@ -403,5 +461,6 @@ export const useVoiceNavigation = () => {
         isSpeechSupported,
         getVoicesForLocale,
         clearVoiceCache,
+        getElevenLabsVoices,
     };
 };

@@ -95,6 +95,14 @@ export const de = {
         voiceTest: "Stimme testen",
         navigationVoice: "Navigationsstimme",
         voiceAuto: "Automatisch",
+        elevenLabs: "ElevenLabs TTS",
+        elevenLabsApiKey: "API Key",
+        elevenLabsApiKeyPlaceholder: "sk-...",
+        elevenLabsVoice: "Stimme",
+        elevenLabsLoad: "Stimmen laden",
+        elevenLabsLoading: "Lädt...",
+        elevenLabsNoKey: "Zuerst API Key eingeben",
+        elevenLabsActive: "Aktiv",
     },
 
     // Voice Navigation

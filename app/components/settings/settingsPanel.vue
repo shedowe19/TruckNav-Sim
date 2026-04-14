@@ -6,7 +6,7 @@ import { atsExpansions } from "~/data/ats/atsExpansions";
 const { settings, activeSettings, updateProfile, updateGlobal, resetSettings } =
     useSettings();
 const { t, locale, setLocale } = useI18n();
-const { voiceEnabled, setVoiceEnabled, testVoice, getVoicesForLocale, clearVoiceCache } = useVoiceNavigation();
+const { voiceEnabled, setVoiceEnabled, testVoice, getVoicesForLocale, clearVoiceCache, getElevenLabsVoices } = useVoiceNavigation();
 
 const props = defineProps<{ closePanel: () => void }>();
 
@@ -20,8 +20,34 @@ const selectedVoiceName = computed({
     },
 });
 
+// ── ElevenLabs ────────────────────────────────────────────────────────────────
+const elevenLabsApiKey = computed({
+    get: () => settings.value.elevenLabsApiKey ?? "",
+    set: (val: string) => updateGlobal("elevenLabsApiKey", val),
+});
+const elevenLabsVoiceId = computed({
+    get: () => settings.value.elevenLabsVoiceId ?? "",
+    set: (val: string) => updateGlobal("elevenLabsVoiceId", val),
+});
+const elevenLabsVoices = ref<{ voice_id: string; name: string }[]>([]);
+const isLoadingElVoices = ref(false);
+
+const loadElevenLabsVoices = async () => {
+    if (!elevenLabsApiKey.value) return;
+    isLoadingElVoices.value = true;
+    elevenLabsVoices.value = await getElevenLabsVoices(elevenLabsApiKey.value);
+    isLoadingElVoices.value = false;
+};
+
+const elevenLabsActive = computed(
+    () => !!elevenLabsApiKey.value && !!elevenLabsVoiceId.value,
+);
+
 onMounted(async () => {
     availableVoices.value = await getVoicesForLocale();
+    if (elevenLabsApiKey.value) {
+        elevenLabsVoices.value = await getElevenLabsVoices(elevenLabsApiKey.value);
+    }
 });
 
 const isDlcPanelOpened = ref(false);
@@ -183,6 +209,46 @@ function toggleSpeedWarning() {
                     {{ voice.label }}
                 </option>
             </select>
+        </div>
+
+        <!-- ElevenLabs TTS -->
+        <div class="option setting" style="flex-direction: column; align-items: flex-start; gap: 1rem;">
+            <div class="option-title">
+                <Icon name="lucide:sparkles" size="24" />
+                <p>
+                    {{ t.settings.elevenLabs }}
+                    <span v-if="elevenLabsActive" class="el-active-badge">{{ t.settings.elevenLabsActive }}</span>
+                </p>
+            </div>
+
+            <div style="width: 100%; display: flex; gap: 0.6rem;">
+                <input
+                    v-model="elevenLabsApiKey"
+                    type="password"
+                    :placeholder="t.settings.elevenLabsApiKeyPlaceholder"
+                    class="nav-btn settings-btn el-input"
+                    style="flex: 1;"
+                />
+                <button
+                    class="nav-btn settings-btn"
+                    :disabled="!elevenLabsApiKey || isLoadingElVoices"
+                    @click.prevent="loadElevenLabsVoices"
+                >
+                    {{ isLoadingElVoices ? t.settings.elevenLabsLoading : t.settings.elevenLabsLoad }}
+                </button>
+            </div>
+
+            <select
+                v-if="elevenLabsVoices.length > 0"
+                v-model="elevenLabsVoiceId"
+                class="nav-btn settings-btn voice-select"
+            >
+                <option value="">— {{ t.settings.elevenLabsVoice }} —</option>
+                <option v-for="v in elevenLabsVoices" :key="v.voice_id" :value="v.voice_id">
+                    {{ v.name }}
+                </option>
+            </select>
+            <p v-else-if="!elevenLabsApiKey" class="el-hint">{{ t.settings.elevenLabsNoKey }}</p>
         </div>
 
         <div class="option setting">

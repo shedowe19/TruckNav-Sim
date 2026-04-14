@@ -19,6 +19,8 @@ export interface AppSettingsState {
     selectedGame: GameType;
     savedIP: string | null;
     selectedVoiceName: string; // native TTS voice name, "" = auto
+    elevenLabsApiKey: string;
+    elevenLabsVoiceId: string;
     profiles: {
         ets2: GameProfile;
         ats: GameProfile;
@@ -40,6 +42,8 @@ const DEFAULT_SETTINGS: AppSettingsState = {
     selectedGame: null,
     savedIP: null,
     selectedVoiceName: "",
+    elevenLabsApiKey: "",
+    elevenLabsVoiceId: "",
     profiles: {
         ets2: { ...DEFAULT_PROFILE, themeColor: "#fbc02d", units: "metric" },
         ats: {
