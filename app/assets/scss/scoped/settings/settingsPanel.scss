@@ -81,6 +81,45 @@
     }
 }
 
+.voice-select {
+    width: 100%;
+    background-color: $default-background-color-dark;
+    color: $white-font-text;
+    border: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.el-input {
+    background-color: $default-background-color-dark;
+    color: $white-font-text;
+    border: none;
+    outline: none;
+    font-weight: 500;
+
+    &::placeholder {
+        opacity: 0.4;
+    }
+}
+
+.el-active-badge {
+    display: inline-block;
+    margin-left: 0.6rem;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background-color: #22c55e;
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.el-hint {
+    font-size: 1.4rem;
+    opacity: 0.5;
+    font-weight: 500;
+}
+
 /**
  * COLOR SETTINGS
  */

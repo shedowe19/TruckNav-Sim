@@ -5,6 +5,7 @@ const props = defineProps<{
 }>();
 const { selectedGame, commitSelection } = useGameSelection();
 const { isWeb, isElectron } = usePlatform();
+const { t } = useI18n();
 
 const handleStart = () => {
     commitSelection();
@@ -24,7 +25,7 @@ const handleStart = () => {
             </button>
 
             <Icon name="material-symbols:globe" class="icon" size="22" />
-            <span>Select Game</span>
+            <span>{{ t.chooseGame.title }}</span>
         </div>
 
         <div class="game-selection" :style="{ width: isWeb ? '80%' : '85%' }">
@@ -42,7 +43,7 @@ const handleStart = () => {
             class="btn nav-btn"
             autofocus
         >
-            <span>Start Navigation</span>
+            <span>{{ t.chooseGame.startNavigation }}</span>
             <Icon name="material-symbols:map-rounded" size="20" />
         </button>
     </div>

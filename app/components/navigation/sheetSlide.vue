@@ -12,6 +12,7 @@ const props = defineProps<{
 }>();
 
 const { kmToUserUnits, distanceUnit } = useUnitConversion();
+const { t } = useI18n();
 
 const routeDistanceConverted = computed(() =>
     kmToUserUnits(props.routeDistance),
@@ -64,7 +65,7 @@ const onToggleSheetHidden = () => {
                                 class="chevron-icon"
                                 size="18"
                             />
-                            {{ isSheetHidden ? "" : "Hide" }}
+                            {{ isSheetHidden ? "" : t.sheetSlide.hide }}
                         </button>
                     </div>
                 </div>
@@ -80,7 +81,7 @@ const onToggleSheetHidden = () => {
                         />
                         <div>
                             <div class="value">{{ routeEta }}</div>
-                            <div class="label">Estimated Time</div>
+                            <div class="label">{{ t.sheetSlide.estimatedTime }}</div>
                         </div>
                     </div>
 
@@ -94,7 +95,7 @@ const onToggleSheetHidden = () => {
                             <div class="value">
                                 {{ routeDistanceConverted }} {{ distanceUnit }}
                             </div>
-                            <div class="label">Distance</div>
+                            <div class="label">{{ t.sheetSlide.distance }}</div>
                         </div>
                     </div>
                 </div>
@@ -105,7 +106,7 @@ const onToggleSheetHidden = () => {
                         class="stop-btn nav-btn"
                         @click.prevent="onStopNavigation"
                     >
-                        <span>Stop</span>
+                        <span>{{ t.sheetSlide.stop }}</span>
                     </button>
 
                     <button
@@ -114,7 +115,7 @@ const onToggleSheetHidden = () => {
                     >
                         <Icon name="tabler:navigation-check" size="24" />
                         <span>{{
-                            isNavigating ? "Resume" : "Start Navigation"
+                            isNavigating ? t.sheetSlide.resume : t.sheetSlide.startNavigation
                         }}</span>
                     </button>
                 </div>

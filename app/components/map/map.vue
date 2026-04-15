@@ -106,11 +106,52 @@ const {
 
 //
 //
+// Voice Navigation
+const { checkAnnouncement, checkSpeedWarning, resetVoice, announceArrived } = useVoiceNavigation();
+
+//
+//
 // Settings Controller
 const { activeSettings, settings } = useSettings();
 
 let uiTimer: ReturnType<typeof setTimeout> | null = null;
 let routeTimer: ReturnType<typeof setTimeout> | null = null;
+
+// ── Real-time distance interpolation ─────────────────────────────────────────
+// Decrements nextTurnDistance at ~60 fps based on current truck speed so the
+// display ticks down smoothly between WebSocket telemetry packets.
+let _rafId: number | null = null;
+let _rafLastTime: number | null = null;
+
+function startRealTimeDistance() {
+    if (_rafId !== null) return;
+    const tick = (now: number) => {
+        if (
+            _rafLastTime !== null &&
+            isRouteActive.value &&
+            nextTurnDistance.value > 0.001 &&
+            truckSpeed.value > 0
+        ) {
+            const dtH = (now - _rafLastTime) / 3_600_000; // ms → hours
+            nextTurnDistance.value = Math.max(
+                0,
+                nextTurnDistance.value - truckSpeed.value * dtH,
+            );
+        }
+        _rafLastTime = now;
+        _rafId = requestAnimationFrame(tick);
+    };
+    _rafLastTime = performance.now();
+    _rafId = requestAnimationFrame(tick);
+}
+
+function stopRealTimeDistance() {
+    if (_rafId !== null) {
+        cancelAnimationFrame(_rafId);
+        _rafId = null;
+    }
+    _rafLastTime = null;
+}
 
 // Forcing loading screen before mounting elements to prevent flashing between game changes
 loading.value = true;
@@ -322,14 +363,17 @@ onMounted(async () => {
         startTelemetry(() => {
             onTelemetryUpdate();
         });
+        startRealTimeDistance();
     } catch (e) {
         console.error(e);
     }
 });
 
 onUnmounted(() => {
+    stopRealTimeDistance();
     stopTelemetry();
     destroyWorker();
+    resetVoice();
 
     if (routeTimer) clearTimeout(routeTimer);
     if (uiTimer) clearTimeout(uiTimer);
@@ -345,6 +389,9 @@ function onTelemetryUpdate() {
 
     followTruck(truckCoords.value, truckHeading.value);
 
+    // Speed warning — works regardless of whether a route is active
+    checkSpeedWarning(truckSpeed.value, speedLimit.value);
+
     if (isRouteActive.value) {
         updateRouteProgress(
             truckCoords.value,
@@ -352,6 +399,16 @@ function onTelemetryUpdate() {
             scale.value,
             averageSpeed.value,
         );
+
+        // Voice announcement
+        const nextTurn = fullRouteDirections.value[1];
+        if (nextTurn) {
+            if (nextTurn.type === "destination" && nextTurnDistance.value < 0.05) {
+                announceArrived();
+            } else {
+                checkAnnouncement(nextTurnDistance.value, nextTurn.type);
+            }
+        }
     }
 }
 
@@ -408,6 +465,7 @@ const toggleSettingsPanel = () => {
 const onCancelRoute = () => {
     clearRouteState();
     stopNavigationMode();
+    resetVoice();
 };
 </script>
 

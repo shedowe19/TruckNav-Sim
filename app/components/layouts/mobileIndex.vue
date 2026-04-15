@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 const { selectedGame } = useGameSelection();
+const { t } = useI18n();
 
 const emit = defineEmits(["connected"]);
 </script>
@@ -12,7 +13,7 @@ const emit = defineEmits(["connected"]);
                 name="i-material-symbols:connected-tv-outline"
                 size="20"
             />
-            <span>Pair with Computer</span>
+            <span>{{ t.mobileIndex.title }}</span>
         </div>
 
         <div class="content">

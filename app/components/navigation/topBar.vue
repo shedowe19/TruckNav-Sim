@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const { kmToUserUnits, literToUserUnits, speedUnit, fuelUnit } =
     useUnitConversion();
+const { t } = useI18n();
 
 const truckSpeedConverted = computed(() => kmToUserUnits(props.truckSpeed));
 const fuelConverted = computed(() => literToUserUnits(props.fuel));
@@ -54,7 +55,7 @@ const fuelConverted = computed(() => literToUserUnits(props.fuel));
         </div>
 
         <div v-else class="disconnected-div">
-            <p class="disconnected-message">Game Offline</p>
+            <p class="disconnected-message">{{ t.topBar.gameOffline }}</p>
             <Icon
                 name="streamline-ultimate:link-disconnected-bold"
                 class="disconnected-icon"

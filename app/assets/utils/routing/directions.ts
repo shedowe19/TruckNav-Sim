@@ -72,20 +72,20 @@ export function generateDirectionsList(
                     turnText = "Turn right";
                     break;
                 case 3: {
+                    // Only create a roundabout step when we have a valid exit count.
+                    // Nodes without exit data are intersections falsely tagged as
+                    // roundabout prefabs in the game graph — skip them silently.
+                    if (!exitCount || exitCount <= 0) break;
                     turnType = "roundabout";
-                    if (exitCount && exitCount > 0) {
-                        const suffix =
-                            exitCount === 1
-                                ? "st"
-                                : exitCount === 2
-                                  ? "nd"
-                                  : exitCount === 3
-                                    ? "rd"
-                                    : "th";
-                        turnText = `${exitCount}${suffix} exit`;
-                    } else {
-                        turnText = `exit at the roundabout`;
-                    }
+                    const suffix =
+                        exitCount === 1
+                            ? "st"
+                            : exitCount === 2
+                              ? "nd"
+                              : exitCount === 3
+                                ? "rd"
+                                : "th";
+                    turnText = `${exitCount}${suffix} exit`;
                     break;
                 }
                 case 5:

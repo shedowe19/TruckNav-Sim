@@ -836,10 +836,17 @@ export const useRouteController = (
 
             if (upcomingTurn && upcomingTurn.cumulativeKm !== undefined) {
                 // 1. Keep visual distance calculating to the START of the turn (Arrow Tail)
-                const distKm = upcomingTurn.cumulativeKm - currentKm;
-                const distRounded = +distKm.toFixed(1);
+                const rawDist = Math.max(0, upcomingTurn.cumulativeKm - currentKm);
 
-                nextTurnDistance.value = Math.max(0, distRounded);
+                // Light EMA smoothing to reduce display jitter from GPS fluctuation.
+                // Snap immediately on init (prev === 0) or after a recalculation (large jump).
+                const prev = nextTurnDistance.value;
+                const smoothed =
+                    prev === 0 || Math.abs(rawDist - prev) > 0.5
+                        ? rawDist
+                        : prev * 0.4 + rawDist * 0.6;
+
+                nextTurnDistance.value = smoothed;
 
                 // 2. Base the removal threshold on the END of the turn (Arrow Head)
                 const targetExitKm =
