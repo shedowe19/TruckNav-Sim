@@ -493,18 +493,17 @@ ipcMain.on("manual-start-server", () => {
 ipcMain.handle("get-sapi-voices", () => {
     if (process.platform !== "win32") return [];
     return new Promise<{ name: string; culture: string }[]>((resolve) => {
-        const { exec } = require("child_process") as typeof import("child_process");
-        const cmd = [
-            "powershell",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "Add-Type -AssemblyName System.Speech;",
-            "(New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices()",
-            "| ForEach-Object { $_.VoiceInfo.Name + '|' + $_.VoiceInfo.Culture }",
-        ].join(" ");
-        exec(cmd, { windowsHide: true }, (err, stdout) => {
-            if (err) { resolve([]); return; }
+        // Use spawn so the | in the script is handled by PowerShell, not cmd.exe
+        const script =
+            "Add-Type -AssemblyName System.Speech; " +
+            "(New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() " +
+            "| ForEach-Object { $_.VoiceInfo.Name + '|' + $_.VoiceInfo.Culture }";
+        const ps = spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], {
+            windowsHide: true,
+        });
+        let stdout = "";
+        ps.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+        ps.on("close", () => {
             const voices = stdout
                 .trim()
                 .split(/\r?\n/)
@@ -517,5 +516,6 @@ ipcMain.handle("get-sapi-voices", () => {
                 .filter((v) => v.name);
             resolve(voices);
         });
+        ps.on("error", () => resolve([]));
     });
 });
